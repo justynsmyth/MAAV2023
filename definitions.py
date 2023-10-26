@@ -10,17 +10,18 @@ shapes = [
     "Cross",
 ]
 
-# Colors: White (255, 255, 255), Black (0, 0, 0), Red (255, 0, 0), Blue (0, 0, 255), Green (0, 255, 0), Purple (127, 0, 255), Brown (102, 51, 0), Orange (255, 128, 0)
-color_options = [
-    (255, 255, 255),  # White
-    (0, 0, 0),        # Black
-    (255, 0, 0),      # Red
-    (0, 0, 255),      # Blue
-    (0, 255, 0),      # Green
-    (127, 0, 255),    # Purple
-    (102, 51, 0),     # Brown
-    (255, 128, 0),    # Orange
-]
+
+# Define the color options as a dictionary
+color_options = {
+    'white': (255, 255, 255),
+    'black': (0, 0, 0),
+    'red': (255, 0, 0),
+    'blue': (0, 0, 255),
+    'green': (0, 255, 0),
+    'purple': (127, 0, 255),
+    'brown': (102, 51, 0),
+    'orange': (255, 128, 0)
+}
 
 # Symbols
 symbols = [

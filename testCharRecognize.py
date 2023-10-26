@@ -2,11 +2,9 @@ import tempfile
 import os
 import shutil
 import argparse
-import numpy as np
-import cv2
 from Generator_v2 import imageGenerate
 from definitions import shapes, color_options, symbols
-from CharRecognize_v2 import charRecognize
+from CharRecognize_v2 import charRecognize, testModel
 
 '''
 ArgParse config
@@ -17,12 +15,20 @@ parser.add_argument("-a", "--all", help="Run script on all combinations.",
                     action="store_true")  # changes args.all to true
 parser.add_argument(
     "-t", "--train", help="generate responses and samples data", action="store_true")
+parser.add_argument(
+    "-r", "--run", action="store_true")
+parser.add_argument("--shape", nargs='+', default=shapes,
+                    help="Specify the shapes to select")
+parser.add_argument("--symbol", nargs="+", default=symbols)
+parser.add_argument("--color", nargs='+', default=color_options)
+
 
 args = parser.parse_args()
 
 if not any(vars(args).values()):
     parser.print_help()
     exit(1)
+
 
 '''
 class that initializes and deletes a temporary file after usage
@@ -46,76 +52,82 @@ if __name__ == "__main__":
     print(temp_dir.dir_path)
     print('--------------------------')
 
-    if args.all:
+    if args.train:
+        print("Starting...")
         ctr = 0
         correct = 0
         for shape in shapes:
-            for color in color_options:
+            for color in color_options.values():
                 for symbol in symbols:
                     ctr += 1
                     filename = os.path.join(
                         temp_dir.dir_path, f'image{ctr}.png')
                     imageGenerate(
                         filename, 500, 500, color, shape, symbol)
-                    value = charRecognize(filename, symbol)
-                    if str(value).strip() == str(symbol).strip():
-                        correct += 1
+                    charRecognize(filename, symbol)
+        print("generated training files.")
 
-        percentage_correct = (correct / ctr) * 100
-        print(f"Values Tested: {ctr}")
-        print(f"Values Correct: {correct}")
-        print(f"Percentage: {percentage_correct}%")
+    elif args.run:
+        if args.all:
+            print("generating ALL combinations...")
+            ctr = 0
+            for shape in shapes:
+                for color in color_options.values():
+                    for symbol in symbols:
+                        ctr += 1
+                        filename = os.path.join(
+                            temp_dir.dir_path, f'image{ctr}.png')
+                        imageGenerate(
+                            filename, 500, 500, color, shape, symbol)
+            print("finished generating")
 
-    elif args.test:
-        samples = np.loadtxt('generalsamples.data', np.float32)
-        responses = np.loadtxt('generalresponses.data', np.float32)
-        responses = responses.reshape((responses.size, 1))
+        else:
+            print("generating...")
+            with open('output.txt', 'w') as file:
+                file.write('')
+            ctr = 0
+            correct = 0
+            for shape in args.shape:
+                for color in args.color:
+                    for symbol in args.symbol:
+                        ctr += 1
+                        file_path = os.path.join(
+                            temp_dir.dir_path, f'image{ctr}.png')
+                        imageGenerate(
+                            file_path, 500, 500, color, shape, symbol)
+                        print(file_path)
+                        char = testModel(file_path)
+                        if char == symbol:
+                            correct += 1
+                        else:
+                            print("Error detected:")
+                            with open('output.txt', 'a') as file:
+                                file.write(
+                                    f"Shape: {shape}, color: {color}, symbol: {symbol}\n")
 
-        model = cv2.ml.KNearest_create()
-        model.train(samples, cv2.ml.ROW_SAMPLE, responses)
+                            # Define the name of the directory to be created
+                            new_directory = 'errorImages'
 
-        im = cv2.imread('test.png')
+                            # Define the path for the new directory
+                            path = os.path.join(os.getcwd(), new_directory)
 
-        out = np.zeros(im.shape, np.uint8)
-        gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-        thresh = cv2.adaptiveThreshold(gray, 255, 1, 1, 11, 2)
+                            # Create the directory
+                            try:
+                                os.mkdir(path)
+                                print(
+                                    f"Directory '{new_directory}' created successfully.")
+                            except FileExistsError:
+                                print(
+                                    f"Directory '{new_directory}' already exists.")
+                            dest_path = os.path.join(
+                                path, f'image{ctr}.png')
+                            shutil.copyfile(file_path, dest_path)
 
-        contours, hierarchy = cv2.findContours(
-            thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+            print("finished generating")
+            print(f"correct {correct}")
+            print(f"Accuracy: {correct / ctr }")
 
-        area_threshold_lower = 50
-        area_threshold_upper = 1000
-
-        for cnt in contours:
-            if area_threshold_lower < cv2.contourArea(cnt) < area_threshold_upper:
-                [x, y, w, h] = cv2.boundingRect(cnt)
-                if h > 28:
-                    cv2.rectangle(im, (x, y),
-                                  (x+w, y+h), (0, 255, 0), 2)
-                    roi = thresh[y:y+h, x:x+w]
-                    roismall = cv2.resize(roi, (10, 10))
-                    roismall = roismall.reshape((1, 100))
-                    roismall = np.float32(roismall)
-                    retval, results, neigh_resp, dists = model.findNearest(
-                        roismall, k=1)
-                    string = str(int((results[0][0])))
-
-                    labels = [str(i) for i in range(10)] + [chr(i)
-                                                            for i in range(65, 91)]  # 0-9, A-Z
-                    label_to_int = {label: i for i, label in enumerate(labels)}
-                    int_to_label = {i: label for label,
-                                    i in label_to_int.items()}  # Reverse mapping
-
-                    if int(string) in int_to_label:
-                        corresponding_character = int_to_label[int(string)]
-                    else:
-                        print(
-                            f"No corresponding character found for the integer {string}.")
-                        exit(1)
-
-                    cv2.putText(out, corresponding_character,
-                                (x, y+h), 0, 1, (0, 255, 0))
-
-        cv2.imshow('im', im)
-        cv2.imshow('out', out)
-        cv2.waitKey(0)
+        # for filename in os.listdir(temp_dir.dir_path):
+        #     file_path = os.path.join(temp_dir.dir_path, filename)
+        #     print(file_path)
+        #     testModel(file_path)

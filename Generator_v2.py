@@ -10,16 +10,18 @@ def imageGenerate(filename, img_h, img_w, color, shape, symbol):
     Generates image based on specified filename.
     """
     selected_shape = shape
-    selected_color = color
+    selected_color = color_options[color]
     selected_symbol = symbol
 
+    color_values_list = list(color_options.values())
     while True:
-        color2 = random.choice(color_options)
+        color2 = random.choice(color_values_list)
         if color2 != selected_color:
             break
 
     print(selected_shape)
     print(selected_color)
+    print(selected_symbol)
     gray = (128, 128, 128)
 
     # ('RGB', (100, 100), selected_color)
