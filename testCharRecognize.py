@@ -5,6 +5,7 @@ import argparse
 from Generator_v2 import imageGenerate
 from definitions import shapes, color_options, symbols
 from CharRecognize_v2 import trainModel, testModel
+from CharRecognize_v3 import easyOCR
 
 '''
 ArgParse config
@@ -17,6 +18,9 @@ parser.add_argument(
     "-t", "--train", help="generate responses and samples data", action="store_true")
 parser.add_argument(
     "-r", "--run", action="store_true")
+parser.add_argument(
+    "-g", "--generate", action="store_true" 
+)
 parser.add_argument("--shape", nargs='+', default=shapes,
                     help="Specify the shapes to select.")
 parser.add_argument("--symbol", nargs="+", default=symbols)
@@ -27,7 +31,66 @@ parser.add_argument("--charColor", nargs='+', default=color_options)
 args = parser.parse_args()
 
 
+def generateImages():
+    new_root_directory =  'data'
+
+    if not os.path.exists(new_root_directory):
+        os.makedirs(new_root_directory)
+
+    test_directory = os.path.join(new_root_directory, 'test')
+
+    if not os.path.exists(test_directory):
+        os.makedirs(test_directory)
+
+    gt_filename = os.path.join(new_root_directory,  'gt.txt')
+    with open(gt_filename, 'w') as file:
+        pass
+
+
+    ctr = 0
+    for shape in shapes:
+        for color in color_options:
+            for symbol in symbols:
+                for charColor in color_options:
+                    if (charColor.capitalize() == color.capitalize()):
+                        continue
+                    ctr += 1
+                    filename = os.path.join(
+                        test_directory, f'image{ctr}.png')
+                    imageGenerate(
+                        filename, 500, 500, color, shape, symbol, charColor)
+                    with open(gt_filename, 'a') as file:
+                                file.write(
+                                    f"test/image{ctr}.png\t{symbol}\n")
+                    
+def fixDirectory():
+    # Define the name of the directory to be created
+    new_directory = 'errorImages'
+
+    # Define the path for the new directory
+    path = os.path.join(os.getcwd(), new_directory)
+
+    # Create the directory or clear it if it already exists
+    try:
+        os.mkdir(path)
+        print(f"Directory '{new_directory}' created successfully.")
+    except FileExistsError:
+        print(f"Directory '{new_directory}' already exists. Clearing its contents.")
+        # Remove all files in the directory
+        for file in os.listdir(path):
+            file_path = os.path.join(path, file)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print(f"Error deleting {file_path}: {e}")
+
 def generateAndRecognize(train):
+    fixDirectory()
+    with open('output.txt', 'w') as file:
+        pass
     ctr = 0
     correct = 0
     for shape in shapes:
@@ -44,8 +107,10 @@ def generateAndRecognize(train):
                     if train:
                         trainModel(filename, symbol)
                     else:
-                        charGuess = testModel(filename)
-                        if charGuess == symbol.capitalize():
+                        # charGuess = testModel(filename)
+                        charGuess = easyOCR(filename)
+                        print(f"Guess: {charGuess}, Answer: {symbol}")
+                        if charGuess == symbol:
                             correct += 1
                         else:
                             # creates a text file with all errors
@@ -54,21 +119,9 @@ def generateAndRecognize(train):
                                 file.write(
                                     f"Shape: {shape}, color: {color}, symbol: {symbol}, charColor: {charColor}, CharGuess: {charGuess} \n")
 
-                            # create a file with all image errors
-                            # Define the name of the directory to be created
-                            new_directory = 'errorImages'
 
                             # Define the path for the new directory
-                            path = os.path.join(os.getcwd(), new_directory)
-
-                            # Create the directory
-                            try:
-                                os.mkdir(path)
-                                print(
-                                    f"Directory '{new_directory}' created successfully.")
-                            except FileExistsError:
-                                print(
-                                    f"Directory '{new_directory}' already exists.")
+                            path = os.path.join(os.getcwd(), 'errorImages')
                             dest_path = os.path.join(
                                 path, f'image{ctr}.png')
                             shutil.copyfile(filename, dest_path)
@@ -109,12 +162,20 @@ if __name__ == "__main__":
         generateAndRecognize(True)
         print("finished.")
 
+    if args.generate:
+        print("generating ALL combinations...")
+        generateImages()
+        print("finished generating")
+
     if args.all:
         print("generating ALL combinations...")
         generateAndRecognize(False)
         print("finished generating")
 
     elif args.run:
+        fixDirectory()
+        with open('output.txt', 'w') as file:
+            pass
         print("generating...")
         with open('output.txt', 'w') as file:
             file.write('')
@@ -132,7 +193,8 @@ if __name__ == "__main__":
                         imageGenerate(
                             file_path, 500, 500, color, shape, symbol, charColor)
                         print(file_path)
-                        charGuess = testModel(file_path)
+                        charGuess = easyOCR(file_path)
+                        print(f"Guess: {charGuess}, Answer: {symbol}")
                         if charGuess == symbol.capitalize():
                             correct += 1
                         else:
@@ -142,21 +204,9 @@ if __name__ == "__main__":
                                 file.write(
                                     f"Shape: {shape}, color: {color}, symbol: {symbol}, charColor: {charColor}, CharGuess: {charGuess} \n")
 
-                            # create a file with all image errors
-                            # Define the name of the directory to be created
-                            new_directory = 'errorImages'
 
                             # Define the path for the new directory
-                            path = os.path.join(os.getcwd(), new_directory)
-
-                            # Create the directory
-                            try:
-                                os.mkdir(path)
-                                print(
-                                    f"Directory '{new_directory}' created successfully.")
-                            except FileExistsError:
-                                print(
-                                    f"Directory '{new_directory}' already exists.")
+                            path = os.path.join(os.getcwd(), 'errorImages')
                             dest_path = os.path.join(
                                 path, f'image{ctr}.png')
                             shutil.copyfile(file_path, dest_path)

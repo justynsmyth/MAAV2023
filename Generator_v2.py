@@ -39,7 +39,7 @@ def imageGenerate(filename, img_h, img_w, color, shape, symbol, color2):
     if selected_shape == "Circle":
         draw.ellipse([center[0]-radius, center[1]-radius,
                      center[0]+radius, center[1]+radius], fill=selected_color)
-    elif selected_shape == "Semi-Circle":
+    elif selected_shape == "Semi-circle":
         center = (0.5*img_w, 0.35*img_h)
         draw.pieslice([center[0]-radius, center[1]-radius, center[0] +
                       radius, center[1]+radius], 0, 180, fill=selected_color)
