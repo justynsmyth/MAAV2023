@@ -4,7 +4,7 @@ import shutil
 import argparse
 from Generator_v2 import imageGenerate
 from definitions import shapes, color_options, symbols
-from CharRecognize_v2 import charRecognize, testModel
+from CharRecognize_v2 import trainModel, testModel
 
 '''
 ArgParse config
@@ -18,16 +18,64 @@ parser.add_argument(
 parser.add_argument(
     "-r", "--run", action="store_true")
 parser.add_argument("--shape", nargs='+', default=shapes,
-                    help="Specify the shapes to select")
+                    help="Specify the shapes to select.")
 parser.add_argument("--symbol", nargs="+", default=symbols)
 parser.add_argument("--color", nargs='+', default=color_options)
+parser.add_argument("--charColor", nargs='+', default=color_options)
 
 
 args = parser.parse_args()
 
-if not any(vars(args).values()):
-    parser.print_help()
-    exit(1)
+
+def generateAndRecognize(train):
+    ctr = 0
+    correct = 0
+    for shape in shapes:
+        for color in color_options:
+            for symbol in symbols:
+                for charColor in color_options:
+                    if (charColor.capitalize() == color.capitalize()):
+                        continue
+                    ctr += 1
+                    filename = os.path.join(
+                        temp_dir.dir_path, f'image{ctr}.png')
+                    imageGenerate(
+                        filename, 500, 500, color, shape, symbol, charColor)
+                    if train:
+                        trainModel(filename, symbol)
+                    else:
+                        charGuess = testModel(filename)
+                        if charGuess == symbol.capitalize():
+                            correct += 1
+                        else:
+                            # creates a text file with all errors
+                            print("Error detected:")
+                            with open('output.txt', 'a') as file:
+                                file.write(
+                                    f"Shape: {shape}, color: {color}, symbol: {symbol}, charColor: {charColor}, CharGuess: {charGuess} \n")
+
+                            # create a file with all image errors
+                            # Define the name of the directory to be created
+                            new_directory = 'errorImages'
+
+                            # Define the path for the new directory
+                            path = os.path.join(os.getcwd(), new_directory)
+
+                            # Create the directory
+                            try:
+                                os.mkdir(path)
+                                print(
+                                    f"Directory '{new_directory}' created successfully.")
+                            except FileExistsError:
+                                print(
+                                    f"Directory '{new_directory}' already exists.")
+                            dest_path = os.path.join(
+                                path, f'image{ctr}.png')
+                            shutil.copyfile(filename, dest_path)
+    print("finished generating")
+    if not train:
+        print(f"correct {correct}")
+        print(f"Accuracy: {correct / ctr }")
 
 
 '''
@@ -53,58 +101,48 @@ if __name__ == "__main__":
     print('--------------------------')
 
     if args.train:
-        print("Starting...")
-        ctr = 0
-        correct = 0
-        for shape in shapes:
-            for color in color_options.values():
-                for symbol in symbols:
-                    ctr += 1
-                    filename = os.path.join(
-                        temp_dir.dir_path, f'image{ctr}.png')
-                    imageGenerate(
-                        filename, 500, 500, color, shape, symbol)
-                    charRecognize(filename, symbol)
-        print("generated training files.")
+        with open('generalsamples.data', 'w') as f:
+            pass
+        with open('generalresponses.data', 'w') as f:
+            pass
+        print("training...")
+        generateAndRecognize(True)
+        print("finished.")
+
+    if args.all:
+        print("generating ALL combinations...")
+        generateAndRecognize(False)
+        print("finished generating")
 
     elif args.run:
-        if args.all:
-            print("generating ALL combinations...")
-            ctr = 0
-            for shape in shapes:
-                for color in color_options.values():
-                    for symbol in symbols:
-                        ctr += 1
-                        filename = os.path.join(
-                            temp_dir.dir_path, f'image{ctr}.png')
-                        imageGenerate(
-                            filename, 500, 500, color, shape, symbol)
-            print("finished generating")
-
-        else:
-            print("generating...")
-            with open('output.txt', 'w') as file:
-                file.write('')
-            ctr = 0
-            correct = 0
-            for shape in args.shape:
-                for color in args.color:
-                    for symbol in args.symbol:
+        print("generating...")
+        with open('output.txt', 'w') as file:
+            file.write('')
+        ctr = 0
+        correct = 0
+        for shape in args.shape:
+            for color in args.color:
+                for symbol in args.symbol:
+                    for charColor in args.charColor:
+                        if (charColor.capitalize() == color.capitalize()):
+                            continue
                         ctr += 1
                         file_path = os.path.join(
                             temp_dir.dir_path, f'image{ctr}.png')
                         imageGenerate(
-                            file_path, 500, 500, color, shape, symbol)
+                            file_path, 500, 500, color, shape, symbol, charColor)
                         print(file_path)
-                        char = testModel(file_path)
-                        if char == symbol:
+                        charGuess = testModel(file_path)
+                        if charGuess == symbol.capitalize():
                             correct += 1
                         else:
+                            # creates a text file with all errors
                             print("Error detected:")
                             with open('output.txt', 'a') as file:
                                 file.write(
-                                    f"Shape: {shape}, color: {color}, symbol: {symbol}\n")
+                                    f"Shape: {shape}, color: {color}, symbol: {symbol}, charColor: {charColor}, CharGuess: {charGuess} \n")
 
+                            # create a file with all image errors
                             # Define the name of the directory to be created
                             new_directory = 'errorImages'
 
@@ -123,9 +161,9 @@ if __name__ == "__main__":
                                 path, f'image{ctr}.png')
                             shutil.copyfile(file_path, dest_path)
 
-            print("finished generating")
-            print(f"correct {correct}")
-            print(f"Accuracy: {correct / ctr }")
+        print("finished generating")
+        print(f"correct {correct}")
+        print(f"Accuracy: {correct / ctr }")
 
         # for filename in os.listdir(temp_dir.dir_path):
         #     file_path = os.path.join(temp_dir.dir_path, filename)

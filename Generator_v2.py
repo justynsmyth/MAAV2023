@@ -5,23 +5,28 @@ from definitions import color_options
 # Random generator for Shape, Color and Symbol
 
 
-def imageGenerate(filename, img_h, img_w, color, shape, symbol):
+def imageGenerate(filename, img_h, img_w, color, shape, symbol, color2):
     """
     Generates image based on specified filename.
     """
-    selected_shape = shape
-    selected_color = color_options[color]
-    selected_symbol = symbol
+    # check for error in command-line in capitalization
+    selected_shape = shape.capitalize()
+    selected_symbol = symbol.capitalize()
+    color = color.capitalize()
+    color2 = color2.capitalize()
 
-    color_values_list = list(color_options.values())
-    while True:
-        color2 = random.choice(color_values_list)
-        if color2 != selected_color:
-            break
+    selected_color = color_options[color]
+    selected_secondary = color_options[color2]
 
     print(selected_shape)
-    print(selected_color)
+    print(color)
     print(selected_symbol)
+    print(color2)
+
+    color_values_list = list(color_options.values())
+    if selected_color == selected_secondary:
+        exit(1)
+
     gray = (128, 128, 128)
 
     # ('RGB', (100, 100), selected_color)
@@ -88,6 +93,6 @@ def imageGenerate(filename, img_h, img_w, color, shape, symbol):
 
     font = ImageFont.truetype("Roboto/Roboto-Black.ttf", size=50)
     draw.text((img_h * 0.465, img_w * 0.465),
-              selected_symbol, color2, font=font)
+              selected_symbol, selected_secondary, font=font)
 
     img.save(filename)

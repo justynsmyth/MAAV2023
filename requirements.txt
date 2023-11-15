@@ -1,3 +1,5 @@
 matplotlib
 pytesseract
-opencv-python==4.8.1
+opencv-python==4.8.1.78
+Pillow
+easyocr

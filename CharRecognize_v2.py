@@ -4,11 +4,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def charRecognize(filename, correctChar):
+def trainModel(filename, correctChar):
     '''
     Detects for character.
-
-    Returns char detected otherwise -1
     '''
     im = cv2.imread(filename)
 
@@ -78,8 +76,44 @@ def testModel(filename):
     im = cv2.imread(filename)
 
     out = np.zeros(im.shape, np.uint8)
-    gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-    thresh = cv2.adaptiveThreshold(gray, 255, 1, 1, 11, 2)
+
+    # 1 use HSV to distinguish
+    hsv = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
+
+    # calculating absolute difference between the HSV components
+    # calculates how each pixel's Hue is different from the average Hue of the whole img
+    # The same is done with Saturation and Value.
+
+    diff_hue = cv2.absdiff(hsv[:, :, 0], hsv[:, :, 0].mean())
+    diff_sat = cv2.absdiff(hsv[:, :, 1], hsv[:, :, 1].mean())
+    diff_val = cv2.absdiff(hsv[:, :, 2], hsv[:, :, 2].mean())
+
+    # creating a mask by thresholding differences
+    # converting an image to binary form (only black and white)
+
+    thresh_hue = cv2.threshold(
+        diff_hue, diff_hue.mean(), 255, cv2.THRESH_BINARY)[1]
+    thresh_sat = cv2.threshold(
+        diff_sat, diff_sat.mean(), 255, cv2.THRESH_BINARY)[1]
+    thresh_val = cv2.threshold(
+        diff_val, diff_val.mean(), 255, cv2.THRESH_BINARY)[1]
+
+    # taking bitwise OR of all masks, this will isolate areas
+    # which significantly varies from the average color
+    mask = cv2.bitwise_or(thresh_hue, thresh_sat)
+    mask = cv2.bitwise_or(mask, thresh_val)
+
+    # finally, taking bitwise_and of the mask with the original image
+    result = cv2.bitwise_and(im, im, mask=mask)
+
+    # 2 use GrayScale
+    gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
+
+    # 3 removes small noise in the image that could be detected as edges but don't really represent the shape.
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    # 4 apply threshold
+    thresh = cv2.adaptiveThreshold(blurred, 255, 1, 1, 11, 2)
 
     contours, hierarchy = cv2.findContours(
         thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
@@ -119,11 +153,33 @@ def testModel(filename):
                 cv2.putText(out, corresponding_character,
                             (x, y+h), 0, 1, (0, 255, 0))
 
-    # cv2.imshow('im', im)
-    # cv2.imshow('out', out)
+    im = cv2.resize(im, (400, 400))
+    hsv = cv2.resize(hsv, (400, 400))
+    result = cv2.resize(result, (400, 400))
+    gray = cv2.resize(gray, (400, 400))
+    thresh = cv2.resize(thresh, (400, 400))
+    out = cv2.resize(out, (400, 400))
+
+    # Convert the 'thresh' and 'out' images to 3 channels if necessary
+    if len(gray.shape) < 3:
+        gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+    if len(result.shape) < 3:
+        result = cv2.cvtColor(result, cv2.COLOR_GRAY2BGR)
+    if len(result.shape) < 3:
+        hsv = cv2.cvtColor(hsv, cv2.COLOR_GRAY2BGR)
+    if len(thresh.shape) < 3:
+        thresh = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
+    if len(out.shape) < 3:
+        out = cv2.cvtColor(out, cv2.COLOR_GRAY2BGR)
+
+    # combined_images = np.concatenate(
+    #     (im, hsv, result, gray, thresh, out), axis=1)
+    # cv2.imshow('Combined Images', combined_images)
     # key = cv2.waitKey(0)
 
     # if key == 27:  # (escape to quit)
     #     sys.exit()
+
+    # cv2.destroyAllWindows()
 
     return corresponding_character
